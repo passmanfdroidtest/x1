@@ -32,12 +32,15 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 import es.wolfi.app.passman.SJCLCrypto;
 import es.wolfi.app.passman.SettingValues;
 import es.wolfi.app.passman.SingleTon;
+import es.wolfi.utils.CredentialLabelSort;
 import es.wolfi.utils.Filterable;
 
 public class Vault extends Core implements Filterable {
@@ -49,7 +52,7 @@ public class Vault extends Core implements Filterable {
     public double last_access;
     public String challenge_password;
 
-    ArrayList<Credential> credentials;
+    CopyOnWriteArrayList<Credential> credentials;
     HashMap<String, Integer> credential_guid;
 
     private String encryption_key = "";
@@ -63,6 +66,10 @@ public class Vault extends Core implements Filterable {
     }
 
     public String decryptString(String cryptogram) {
+        return decryptString(cryptogram, this.encryption_key);
+    }
+
+    public String decryptString(String cryptogram, String encryption_key) {
         if (cryptogram == null) {
             return "";
         }
@@ -89,6 +96,10 @@ public class Vault extends Core implements Filterable {
 
     public void lock() {
         encryption_key = "";
+
+        for (Credential credential : credentials) {
+            credential.resetDecryptedSharedKey();
+        }
     }
 
     public boolean is_unlocked() {
@@ -106,6 +117,10 @@ public class Vault extends Core implements Filterable {
     }
 
     public String encryptString(String plaintext) {
+        return encryptString(plaintext, this.encryption_key);
+    }
+
+    public String encryptString(String plaintext, String encryption_key) {
         if (plaintext == null) {
             return "";
         }
@@ -119,6 +134,10 @@ public class Vault extends Core implements Filterable {
     }
 
     public String encryptRawStringData(String plaintext) {
+        return encryptRawStringData(plaintext, this.encryption_key);
+    }
+
+    public String encryptRawStringData(String plaintext, String encryption_key) {
         if (plaintext == null) {
             return "";
         }
@@ -144,7 +163,7 @@ public class Vault extends Core implements Filterable {
         return new Date((long) last_access * 1000);
     }
 
-    public ArrayList<Credential> getCredentials() {
+    public CopyOnWriteArrayList<Credential> getCredentials() {
         return credentials;
     }
 
@@ -209,7 +228,7 @@ public class Vault extends Core implements Filterable {
 
         if (o.has("credentials")) {
             JSONArray j = o.getJSONArray("credentials");
-            v.credentials = new ArrayList<Credential>();
+            v.credentials = new CopyOnWriteArrayList<Credential>();
             v.credential_guid = new HashMap<>();
 
             for (int i = 0; i < j.length(); i++) {
@@ -225,6 +244,19 @@ public class Vault extends Core implements Filterable {
         }
 
         return v;
+    }
+
+    public void sort(int method) {
+        ArrayList<Credential> temp = new ArrayList<>(credentials);
+        credential_guid.clear();
+
+        Collections.sort(temp, new CredentialLabelSort(method));
+        for (int i = 0; i < temp.size(); i++) {
+            credential_guid.put(temp.get(i).getGuid(), i);
+        }
+
+        credentials.clear();
+        credentials.addAll(temp);
     }
 
     public void addCredential(Credential credential) {
@@ -245,6 +277,8 @@ public class Vault extends Core implements Filterable {
         for (Credential credential : credentials) {
             if (credential.getGuid().equals(updatedCredential.getGuid())) {
                 credentials.remove(credential);
+                credential_guid.remove(updatedCredential.getGuid());
+                break;
             }
         }
     }

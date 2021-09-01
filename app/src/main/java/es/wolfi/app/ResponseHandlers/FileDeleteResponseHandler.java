@@ -2,12 +2,13 @@ package es.wolfi.app.ResponseHandlers;
 
 import android.app.ProgressDialog;
 import android.view.View;
+import android.widget.Toast;
 
 import com.loopj.android.http.AsyncHttpResponseHandler;
 
 import java.util.List;
 
-import es.wolfi.app.passman.FileEditAdapter;
+import es.wolfi.app.passman.adapters.FileEditAdapter;
 import es.wolfi.app.passman.R;
 import es.wolfi.passman.API.File;
 
@@ -41,6 +42,7 @@ public class FileDeleteResponseHandler extends AsyncHttpResponseHandler {
     @Override
     public void onFailure(int statusCode, cz.msebera.android.httpclient.Header[] headers, byte[] responseBody, Throwable error) {
         error.printStackTrace();
+        Toast.makeText(view.getContext(), R.string.error_occurred, Toast.LENGTH_LONG).show();
         progress.dismiss();
     }
 

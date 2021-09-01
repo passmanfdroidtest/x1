@@ -36,9 +36,11 @@ import org.json.JSONObject;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 import es.wolfi.app.ResponseHandlers.AutofillCredentialSaveResponseHandler;
 import es.wolfi.app.passman.R;
@@ -46,6 +48,7 @@ import es.wolfi.app.passman.SettingValues;
 import es.wolfi.app.passman.SingleTon;
 import es.wolfi.passman.API.Credential;
 import es.wolfi.passman.API.Vault;
+import es.wolfi.utils.JSONUtils;
 
 import static android.service.autofill.SaveInfo.FLAG_SAVE_ON_ALL_VIEWS_INVISIBLE;
 
@@ -113,7 +116,7 @@ public final class CredentialAutofillService extends AutofillService {
         CredentialAutofillService.WebDomainResult domain = getLikelyDomain(structures);
 
         // Grab Credentials from vault
-        ArrayList<Credential> allCred = v.getCredentials();
+        CopyOnWriteArrayList<Credential> allCred = v.getCredentials();
 
         if (allCred.isEmpty()) {
             Toast.makeText(getApplicationContext(), getString(R.string.autofill_vaultempty), Toast.LENGTH_SHORT).show();
@@ -395,7 +398,7 @@ public final class CredentialAutofillService extends AutofillService {
     }
 
     private List<Credential> findMatchingCredentials(
-            @NonNull ArrayList<Credential> credentialArrayList,
+            @NonNull CopyOnWriteArrayList<Credential> credentialArrayList,
             @NonNull String packageName,
             @NonNull CredentialAutofillService.WebDomainResult domain) {
         ArrayList<Credential> matchingDomainCred = new ArrayList<>();
@@ -541,19 +544,19 @@ public final class CredentialAutofillService extends AutofillService {
 
     private Vault getAutofillVault(SingleTon ton) {
         SharedPreferences settings = PreferenceManager.getDefaultSharedPreferences(getBaseContext());
-        if (settings.getString(SettingValues.AUTOFILL_VAULT_GUID.toString(), null) != null) {
-            String autofill_vault_guid = settings.getString(SettingValues.AUTOFILL_VAULT_GUID.toString(), null);
-            if (!autofill_vault_guid.equals("")) {
-                try {
-                    Vault requestedVault = Vault.fromJSON(new JSONObject(settings.getString(SettingValues.AUTOFILL_VAULT.toString(), "")));
-                    requestedVault.unlock(settings.getString(autofill_vault_guid, ""));
-                    return requestedVault;
-                } catch (JSONException e) {
-                    e.printStackTrace();
-                }
+        Vault activeVault = (Vault) ton.getExtra(SettingValues.ACTIVE_VAULT.toString());
+        String autofillVaultGuid = settings.getString(SettingValues.AUTOFILL_VAULT_GUID.toString(), null);
+
+        if (activeVault != null && !activeVault.guid.equals(autofillVaultGuid) && !autofillVaultGuid.equals("")) {
+            try {
+                Vault requestedVault = Vault.fromJSON(new JSONObject(settings.getString(SettingValues.AUTOFILL_VAULT.toString(), "")));
+                requestedVault.unlock(settings.getString(autofillVaultGuid, ""));
+                return requestedVault;
+            } catch (JSONException e) {
+                e.printStackTrace();
             }
         }
 
-        return (Vault) ton.getExtra(SettingValues.ACTIVE_VAULT.toString());
+        return activeVault;
     }
 }
